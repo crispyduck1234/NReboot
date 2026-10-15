@@ -218,11 +218,15 @@ footer {
   AN UNOFFICIAL RETRO TV FAN PROJECT · MADE FOR NOSTALGIA
 </footer>
 
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-  const SUPABASE_URL = "https://mylyzcfxlkszlproidnh.supabase.co/rest/v1/"
-  { const SUPABASE_KEY = "sb_publishable_MshxI2MawNuZ41uRg2zwAw_sB3jdOJN"
-   );
+const SUPABASE_URL = "https://mylyzcfxlkszlproidnh.supabase.co";
+const SUPABASE_KEY = "sb_publishable_MshxI2MawNuZ41uRg2zwAw_sB3jdOJN";
+  const supabaseClient = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY
+);
    
 </script>
 const playlist = [
