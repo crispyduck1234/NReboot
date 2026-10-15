@@ -218,19 +218,25 @@ footer {
   AN UNOFFICIAL RETRO TV FAN PROJECT · MADE FOR NOSTALGIA
 </footer>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const playlist = [
   {
     title: "Retro Test Broadcast",
     description: "Sample video",
     url: "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4"
-  },
-  {
+  }, 
+  const SUPABASE_URL = "https://mylyzcfxlkszlproidnh.supabase.co/rest/v1/"
+  { const SUPABASE_KEY = "sb_publishable_MshxI2MawNuZ41uRg2zwAw_sB3jdOJN"
     title: "Colour Test",
     description: "Sample video",
     url: "https://www.w3schools.com/html/mov_bbb.mp4"
-  }
+  } 
+const supabaseClient = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY
 ];
+  
 
 let current = 0;
 
