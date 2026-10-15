@@ -233,109 +233,178 @@ const playlist = [
 ];
 
 let current = 0;
+
 const player = document.getElementById("player");
 const message = document.getElementById("screenMessage");
 const nowPlaying = document.getElementById("nowPlaying");
 const upNext = document.getElementById("upNext");
 const playBtn = document.getElementById("playBtn");
+const muteBtn = document.getElementById("muteBtn");
+const schedule = document.getElementById("schedule");
+const messageText = message.querySelector("span");
+
+function showMessage(text) {
+  messageText.textContent = text;
+  message.classList.remove("hidden");
+}
 
 function render() {
   const item = playlist[current];
+
   nowPlaying.textContent = item.title;
   upNext.textContent =
     playlist[(current + 1) % playlist.length].title;
 
-  document.querySelectorAll(".program").forEach((el, i) => {
-    el.classList.toggle("current", i === current);
+  [...schedule.children].forEach((row, i) => {
+    row.classList.toggle("current", i === current);
+    if (i === current) {
+      row.setAttribute("aria-current", "true");
+    } else {
+      row.removeAttribute("aria-current");
+    }
   });
 }
 
-function tuneIn(index, autoplay = true) {
-  current = (index + playlist.length) % playlist.length;
-  player.src = playlist[current].url;
-  player.load();
-  render();
+async function tuneIn(index, autoplay = true) {
+  if (!playlist.length) return;
 
-  if (autoplay) {
-    player.play().then(() => {
-      message.classList.add("hidden");
-    }).catch(() => {
-      message.classList.remove("hidden");
-      message.querySelector("span").textContent =
-        "PRESS PLAY TO START THE BROADCAST";
-    });
-  } else {
-    message.classList.remove("hidden");
+  current = (index + playlist.length) % playlist.length;
+  const item = playlist[current];
+
+  render();
+  showMessage("TUNING IN...");
+  playBtn.textContent = "▶ Tune In";
+
+  player.pause();
+  player.src = item.url;
+  player.load();
+
+  if (!autoplay) return;
+
+  try {
+    await player.play();
+    // The "play" event hides the message.
+  } catch (error) {
+    console.warn("Playback failed:", error.name, error.message);
+
+    if (error.name === "NotAllowedError") {
+      showMessage("PRESS PLAY TO START");
+    } else {
+      showMessage("UNABLE TO PLAY — CHECK VIDEO URL");
+    }
   }
 }
 
 function renderSchedule() {
-  const schedule = document.getElementById("schedule");
   schedule.replaceChildren();
 
   playlist.forEach((item, i) => {
     const row = document.createElement("div");
     row.className = "program";
-    const name = document.createElement("strong");
-    name.textContent = item.title;
-    const detail = document.createElement("small");
-    detail.textContent = item.description;
-    row.append(name, detail);
     row.tabIndex = 0;
     row.setAttribute("role", "button");
     row.setAttribute("aria-label", "Play " + item.title);
 
+    const name = document.createElement("strong");
+    name.textContent = item.title;
+
+    const detail = document.createElement("small");
+    detail.textContent = item.description;
+
+    row.append(name, detail);
+
     const selectProgram = () => tuneIn(i);
     row.addEventListener("click", selectProgram);
-    row.addEventListener("keydown", e => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
+
+    row.addEventListener("keydown", event => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
         selectProgram();
       }
     });
+
     schedule.append(row);
   });
+
   render();
 }
 
-playBtn.addEventListener("click", () => {
+playBtn.addEventListener("click", async () => {
   if (player.paused) {
-    if (!player.src) {
-      tuneIn(current);
+    if (!player.src || player.ended) {
+      await tuneIn(current);
     } else {
-      player.play().catch(() => {});
+      try {
+        await player.play();
+      } catch (error) {
+        console.warn("Could not resume playback:", error);
+        showMessage(
+          error.name === "NotAllowedError"
+            ? "PRESS PLAY TO START"
+            : "PLAYBACK FAILED — CHECK VIDEO SOURCE"
+        );
+      }
     }
   } else {
     player.pause();
   }
 });
 
-document.getElementById("nextBtn").onclick =
-  () => tuneIn(current + 1);
-document.getElementById("prevBtn").onclick =
-  () => tuneIn(current - 1);
+document.getElementById("nextBtn").addEventListener("click", () => {
+  tuneIn(current + 1);
+});
 
-document.getElementById("muteBtn").onclick = () => {
+document.getElementById("prevBtn").addEventListener("click", () => {
+  tuneIn(current - 1);
+});
+
+muteBtn.addEventListener("click", () => {
   player.muted = !player.muted;
-  document.getElementById("muteBtn").textContent =
-    player.muted ? "🔇 Unmute" : "🔊 Mute";
-};
+  muteBtn.textContent = player.muted ? "🔇 Unmute" : "🔊 Mute";
+});
 
 player.addEventListener("play", () => {
   playBtn.textContent = "⏸ Pause";
   message.classList.add("hidden");
 });
+
 player.addEventListener("pause", () => {
   playBtn.textContent = "▶ Tune In";
 });
-player.addEventListener("ended", () => tuneIn(current + 1));
+
+player.addEventListener("ended", () => {
+  tuneIn(current + 1);
+});
+
 player.addEventListener("error", () => {
-  message.classList.remove("hidden");
-  message.querySelector("span").textContent =
-    "VIDEO UNAVAILABLE — TRY ANOTHER CHANNEL";
+  const error = player.error;
+  const code = error ? error.code : 0;
+
+  const reasons = {
+    1: "PLAYBACK ABORTED",
+    2: "NETWORK ERROR — CHECK CONNECTION",
+    3: "VIDEO DECODE ERROR",
+    4: "UNSUPPORTED OR UNAVAILABLE VIDEO"
+  };
+
+  showMessage(
+    reasons[code] || "VIDEO UNAVAILABLE — CHECK VIDEO URL"
+  );
+
+  console.error("Video error:", {
+    code,
+    message: error?.message,
+    url: player.currentSrc
+  });
+});
+
+player.addEventListener("loadedmetadata", () => {
+  console.log("Video loaded:", player.currentSrc);
+  console.log("Duration:", player.duration, "seconds");
 });
 
 renderSchedule();
+showMessage("PRESS TUNE IN TO START THE BROADCAST");
 </script>
 </body>
 </html>
