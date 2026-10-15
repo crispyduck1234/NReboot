@@ -1,10 +1,10 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>NickReboot — Retro TV</title>
+
 <style>
 :root {
   --orange: #ff6500;
@@ -12,13 +12,16 @@
   --panel: #1b1b1b;
   --muted: #aaa;
 }
+
 * { box-sizing: border-box; }
+
 body {
   margin: 0;
   background: var(--bg);
   color: white;
   font-family: "Trebuchet MS", Arial, sans-serif;
 }
+
 header {
   padding: 22px 5%;
   display: flex;
@@ -26,6 +29,7 @@ header {
   align-items: center;
   border-bottom: 1px solid #303030;
 }
+
 .logo {
   font-weight: 1000;
   font-size: 30px;
@@ -33,17 +37,28 @@ header {
   letter-spacing: -2px;
   color: var(--orange);
 }
+
 .live {
   color: #ff5555;
   font-size: 12px;
   letter-spacing: 2px;
 }
+
 main {
   width: min(1000px, 92%);
   margin: 38px auto;
 }
-h1 { font-size: clamp(26px, 5vw, 44px); margin-bottom: 8px; }
-.subtitle { color: var(--muted); margin-top: 0; }
+
+h1 {
+  font-size: clamp(26px, 5vw, 44px);
+  margin-bottom: 8px;
+}
+
+.subtitle {
+  color: var(--muted);
+  margin-top: 0;
+}
+
 .tv {
   padding: 10px;
   border: 2px solid #383838;
@@ -51,6 +66,7 @@ h1 { font-size: clamp(26px, 5vw, 44px); margin-bottom: 8px; }
   background: #222;
   box-shadow: 0 14px 55px #0009;
 }
+
 .screen {
   position: relative;
   overflow: hidden;
@@ -58,12 +74,14 @@ h1 { font-size: clamp(26px, 5vw, 44px); margin-bottom: 8px; }
   background: #050505;
   border-radius: 7px;
 }
+
 video {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: contain;
 }
+
 .scanlines {
   position: absolute;
   inset: 0;
@@ -76,6 +94,7 @@ video {
     transparent 4px
   );
 }
+
 #screenMessage {
   position: absolute;
   inset: 0;
@@ -85,19 +104,25 @@ video {
   padding: 20px;
   pointer-events: none;
 }
+
 #screenMessage strong {
   color: var(--orange);
   font-size: clamp(25px, 6vw, 58px);
   font-weight: 1000;
   font-style: italic;
 }
+
 #screenMessage span {
   color: #ddd;
   margin-top: 12px;
   font-size: 12px;
   letter-spacing: 3px;
 }
-#screenMessage.hidden { display: none; }
+
+#screenMessage.hidden {
+  display: none;
+}
+
 .info {
   display: flex;
   flex-wrap: wrap;
@@ -105,14 +130,21 @@ video {
   justify-content: space-between;
   padding: 20px 4px;
 }
+
 .info p { margin: 6px 0; }
-.muted { color: var(--muted); font-size: 13px; }
+
+.muted {
+  color: var(--muted);
+  font-size: 13px;
+}
+
 .controls {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
   margin: 10px 0 30px;
 }
+
 button {
   cursor: pointer;
   background: var(--panel);
@@ -122,28 +154,35 @@ button {
   padding: 12px 17px;
   font-weight: bold;
 }
-button:hover, button.active {
+
+button:hover,
+button.active {
   border-color: var(--orange);
   color: var(--orange);
 }
+
 button.primary {
   background: var(--orange);
   color: #111;
   border-color: var(--orange);
 }
+
 button:focus-visible {
   outline: 2px solid white;
   outline-offset: 3px;
 }
+
 .section-title {
   border-bottom: 1px solid #333;
   padding-bottom: 12px;
 }
+
 .schedule {
   display: grid;
   gap: 10px;
   margin: 18px 0 40px;
 }
+
 .program {
   display: flex;
   justify-content: space-between;
@@ -152,9 +191,23 @@ button:focus-visible {
   padding: 16px;
   border-radius: 7px;
   border-left: 3px solid #444;
+  cursor: pointer;
 }
-.program.current { border-left-color: var(--orange); }
-.program small { color: var(--muted); }
+
+.program.current {
+  border-left-color: var(--orange);
+}
+
+.program small {
+  color: var(--muted);
+}
+
+.status {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 12px 0;
+}
+
 footer {
   text-align: center;
   padding: 28px;
@@ -162,6 +215,7 @@ footer {
   border-top: 1px solid #292929;
   font-size: 12px;
 }
+
 @media (max-width: 550px) {
   header { padding: 18px 4%; }
   .logo { font-size: 24px; }
@@ -170,7 +224,9 @@ footer {
 }
 </style>
 </head>
+
 <body>
+
 <header>
   <div class="logo">NickReboot</div>
   <div class="live">● ON AIR</div>
@@ -184,7 +240,9 @@ footer {
     <div class="screen">
       <video id="player" controls playsinline
         preload="metadata"></video>
+
       <div class="scanlines"></div>
+
       <div id="screenMessage">
         <strong>NickReboot</strong>
         <span>YOUR RETRO TV EXPERIENCE</span>
@@ -195,11 +253,12 @@ footer {
   <div class="info">
     <div>
       <p class="muted">NOW PLAYING</p>
-      <p id="nowPlaying"><strong>Welcome to NickReboot</strong></p>
+      <p id="nowPlaying">Waiting for broadcast</p>
     </div>
+
     <div>
       <p class="muted">UP NEXT</p>
-      <p id="upNext">Waiting for broadcast</p>
+      <p id="upNext">Waiting for playlist</p>
     </div>
   </div>
 
@@ -211,6 +270,7 @@ footer {
   </div>
 
   <h2 class="section-title">📺 Programme Guide</h2>
+  <p class="status" id="status">Loading programme guide...</p>
   <div class="schedule" id="schedule"></div>
 </main>
 
@@ -218,57 +278,46 @@ footer {
   AN UNOFFICIAL RETRO TV FAN PROJECT · MADE FOR NOSTALGIA
 </footer>
 
-
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  
+
 <script>
-const SUPABASE_URL = "https://mylyzcfxlkszlproidnh.supabase.co";
-const SUPABASE_KEY = "sb_publishable_MshxI2MawNuZ41uRg2zwAw_sB3jdOJN";
-  const supabaseClient = window.supabase.createClient(
+const SUPABASE_URL =
+  "https://mylyzcfxlkszlproidnh.supabase.co";
+
+const SUPABASE_KEY =
+  "sb_publishable_MshxI2MawNuZ41uRg2zwAw_sB3jdOJN";
+
+const supabaseClient = window.supabase.createClient(
   SUPABASE_URL,
   SUPABASE_KEY
 );
-</script>
-  
-</body>
-</html>
-const playlist = [
+
+// Demonstration playlist used if the database is empty
+// or cannot be reached.
+let playlist = [
   {
     title: "Retro Test Broadcast",
     description: "Sample video",
     url: "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4"
-  }, 
-  
+  },
+  {
     title: "Colour Test",
     description: "Sample video",
     url: "https://www.w3schools.com/html/mov_bbb.mp4"
-  } 
-const supabaseClient = window.supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_KEY
+  }
 ];
-  supabaseClient
-  .from("playlist_items")
-  .select("*")
-  .then(({ data, error }) => {
-    if (error) {
-      console.error("Supabase connection failed:", error.message);
-    } else {
-      console.log("NickReboot connected!", data);
-    }
-  });
-  
 
 let current = 0;
 
 const player = document.getElementById("player");
 const message = document.getElementById("screenMessage");
+const messageText = message.querySelector("span");
 const nowPlaying = document.getElementById("nowPlaying");
 const upNext = document.getElementById("upNext");
 const playBtn = document.getElementById("playBtn");
 const muteBtn = document.getElementById("muteBtn");
 const schedule = document.getElementById("schedule");
-const messageText = message.querySelector("span");
+const statusText = document.getElementById("status");
 
 function showMessage(text) {
   messageText.textContent = text;
@@ -276,6 +325,12 @@ function showMessage(text) {
 }
 
 function render() {
+  if (!playlist.length) {
+    nowPlaying.textContent = "No programmes available";
+    upNext.textContent = "Waiting for playlist";
+    return;
+  }
+
   const item = playlist[current];
 
   nowPlaying.textContent = item.title;
@@ -284,55 +339,57 @@ function render() {
 
   [...schedule.children].forEach((row, i) => {
     row.classList.toggle("current", i === current);
-    if (i === current) {
-      row.setAttribute("aria-current", "true");
-    } else {
-      row.removeAttribute("aria-current");
-    }
+    row.setAttribute(
+      "aria-current",
+      i === current ? "true" : "false"
+    );
   });
 }
 
 async function tuneIn(index, autoplay = true) {
-  if (!playlist.length) return;
+  if (!playlist.length) {
+    showMessage("NO PROGRAMMES AVAILABLE");
+    return;
+  }
 
   if (index === "random") {
-  if (playlist.length > 1) {
-    let next;
+    if (playlist.length > 1) {
+      let next;
 
-    do {
-      next = Math.floor(Math.random() * playlist.length);
-    } while (next === current);
+      do {
+        next = Math.floor(Math.random() * playlist.length);
+      } while (next === current);
 
-    current = next;
+      current = next;
+    } else {
+      current = 0;
+    }
   } else {
-    current = 0;
+    current =
+      ((index % playlist.length) + playlist.length) %
+      playlist.length;
   }
-} else {
-  current = (index + playlist.length) % playlist.length;
-}
+
   const item = playlist[current];
 
   render();
-  showMessage("TUNING IN...");
-  playBtn.textContent = "▶ Tune In";
-
   player.pause();
   player.src = item.url;
   player.load();
+  showMessage("TUNING IN...");
 
   if (!autoplay) return;
 
   try {
     await player.play();
-    // The "play" event hides the message.
   } catch (error) {
-    console.warn("Playback failed:", error.name, error.message);
+    console.warn("Playback failed:", error);
 
-    if (error.name === "NotAllowedError") {
-      showMessage("PRESS PLAY TO START");
-    } else {
-      showMessage("UNABLE TO PLAY — CHECK VIDEO URL");
-    }
+    showMessage(
+      error.name === "NotAllowedError"
+        ? "PRESS PLAY TO START"
+        : "VIDEO UNAVAILABLE — CHECK SOURCE"
+    );
   }
 }
 
@@ -350,17 +407,16 @@ function renderSchedule() {
     name.textContent = item.title;
 
     const detail = document.createElement("small");
-    detail.textContent = item.description;
+    detail.textContent = item.description || "";
 
     row.append(name, detail);
 
-    const selectProgram = () => tuneIn(i);
-    row.addEventListener("click", selectProgram);
+    row.addEventListener("click", () => tuneIn(i));
 
     row.addEventListener("keydown", event => {
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
-        selectProgram();
+        tuneIn(i);
       }
     });
 
@@ -370,20 +426,54 @@ function renderSchedule() {
   render();
 }
 
+// Load programme entries from Supabase.
+async function loadPlaylist() {
+  statusText.textContent = "Loading shared playlist...";
+
+  try {
+    const { data, error } = await supabaseClient
+      .from("playlist_items")
+      .select("id, title, video_url, description, position")
+      .order("position", { ascending: true });
+
+    if (error) throw error;
+
+    if (data && data.length > 0) {
+      playlist = data.map(item => ({
+        id: item.id,
+        title: item.title,
+        description: item.description || "",
+        url: item.video_url
+      }));
+
+      statusText.textContent =
+        "Loaded " + playlist.length +
+        " programme(s) from the shared database.";
+    } else {
+      statusText.textContent =
+        "Database is connected, but no programmes have been added yet. Showing test videos.";
+    }
+  } catch (error) {
+    console.error("Supabase playlist error:", error.message);
+
+    statusText.textContent =
+      "Could not load the database playlist. Showing test videos.";
+  }
+
+  current = 0;
+  renderSchedule();
+}
+
 playBtn.addEventListener("click", async () => {
   if (player.paused) {
-    if (!player.src || player.ended) {
-      await tuneIn("random");
+    if (!player.currentSrc || player.ended) {
+      await tuneIn(current);
     } else {
       try {
         await player.play();
       } catch (error) {
         console.warn("Could not resume playback:", error);
-        showMessage(
-          error.name === "NotAllowedError"
-            ? "PRESS PLAY TO START"
-            : "PLAYBACK FAILED — CHECK VIDEO SOURCE"
-        );
+        showMessage("PRESS PLAY TO START");
       }
     }
   } else {
@@ -401,7 +491,8 @@ document.getElementById("prevBtn").addEventListener("click", () => {
 
 muteBtn.addEventListener("click", () => {
   player.muted = !player.muted;
-  muteBtn.textContent = player.muted ? "🔇 Unmute" : "🔊 Mute";
+  muteBtn.textContent =
+    player.muted ? "🔇 Unmute" : "🔊 Mute";
 });
 
 player.addEventListener("play", () => {
@@ -413,37 +504,22 @@ player.addEventListener("pause", () => {
   playBtn.textContent = "▶ Tune In";
 });
 
-player.addEventListener("ended", () => tuneIn("random"));
+player.addEventListener("ended", () => {
+  tuneIn("random");
+});
 
 player.addEventListener("error", () => {
   const error = player.error;
-  const code = error ? error.code : 0;
-
-  const reasons = {
-    1: "PLAYBACK ABORTED",
-    2: "NETWORK ERROR — CHECK CONNECTION",
-    3: "VIDEO DECODE ERROR",
-    4: "UNSUPPORTED OR UNAVAILABLE VIDEO"
-  };
-
-  showMessage(
-    reasons[code] || "VIDEO UNAVAILABLE — CHECK VIDEO URL"
-  );
-
   console.error("Video error:", {
-    code,
-    message: error?.message,
+    code: error ? error.code : 0,
     url: player.currentSrc
   });
+
+  showMessage("VIDEO UNAVAILABLE — CHECK VIDEO SOURCE");
 });
 
-player.addEventListener("loadedmetadata", () => {
-  console.log("Video loaded:", player.currentSrc);
-  console.log("Duration:", player.duration, "seconds");
-});
-
-renderSchedule();
-showMessage("PRESS TUNE IN TO START THE BROADCAST");
+loadPlaylist();
 </script>
+
 </body>
 </html>
