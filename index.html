@@ -268,7 +268,21 @@ function render() {
 async function tuneIn(index, autoplay = true) {
   if (!playlist.length) return;
 
+  if (index === "random") {
+  if (playlist.length > 1) {
+    let next;
+
+    do {
+      next = Math.floor(Math.random() * playlist.length);
+    } while (next === current);
+
+    current = next;
+  } else {
+    current = 0;
+  }
+} else {
   current = (index + playlist.length) % playlist.length;
+}
   const item = playlist[current];
 
   render();
@@ -332,7 +346,7 @@ function renderSchedule() {
 playBtn.addEventListener("click", async () => {
   if (player.paused) {
     if (!player.src || player.ended) {
-      await tuneIn(current);
+      await tuneIn("random");
     } else {
       try {
         await player.play();
@@ -372,9 +386,7 @@ player.addEventListener("pause", () => {
   playBtn.textContent = "▶ Tune In";
 });
 
-player.addEventListener("ended", () => {
-  tuneIn(current + 1);
-});
+player.addEventListener("ended", () => tuneIn("random"));
 
 player.addEventListener("error", () => {
   const error = player.error;
