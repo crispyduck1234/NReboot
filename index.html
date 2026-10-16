@@ -435,10 +435,10 @@ async function loadPlaylist() {
   statusText.textContent = "Loading shared playlist...";
 
   try {
-    const { data, error } = await supabaseClient
-      .from("playlist_items")
-      .select("id, title, video_url, description, position")
-      .order("position", { ascending: true });
+  const { data, error } = await supabaseClient
+  .from("playlist_items")
+  .select("id, title, video_url, description, position")
+  .order("position", { ascending: true });
 
     if (error) throw error;
 
@@ -489,11 +489,36 @@ async function applyBroadcast(state) {
       item => item.id === state.current_item_id
     );
 
-    if (index < 0) {
+  
+if (index < 0) {
+  statusText.textContent = "Refreshing playlist to find current programme...";
+
+  await loadPlaylist();
+
+  // The playlist may have changed while it was loading.
+  if (applyingBroadcast) {
+    const refreshedIndex = playlist.findIndex(
+      item => item.id === state.current_item_id
+    );
+
+    if (refreshedIndex < 0) {
       statusText.textContent =
-        "The current broadcast item isn't in the loaded playlist.";
+        "Current programme is missing from the refreshed playlist.";
       return;
     }
+  }
+
+  const refreshedIndex = playlist.findIndex(
+    item => item.id === state.current_item_id
+  );
+
+  if (refreshedIndex < 0) {
+    statusText.textContent =
+      "Could not find the current programme. Check the playlist query.";
+    return;
+  }
+}
+```
 
     current = index;
     render();
