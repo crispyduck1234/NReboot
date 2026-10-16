@@ -330,7 +330,40 @@ async function loadQueue() {
     url.textContent = item.video_url;
 
     details.append(title, description, url);
-    row.append(details);
+
+    // Create the Remove button
+    const removeBtn = document.createElement("button");
+    removeBtn.textContent = "Remove";
+    removeBtn.style.backgroundColor = "#dc2626";
+    removeBtn.style.color = "#ffffff";
+
+    removeBtn.addEventListener("click", async () => {
+      if (!currentUser) return;
+
+      if (!confirm('Remove "' + item.title + '" from the playlist?')) {
+        return;
+      }
+
+      removeBtn.disabled = true;
+      status("Removing programme...");
+
+      try {
+        const { error: deleteError } = await db
+          .from("playlist_items")
+          .delete()
+          .eq("id", item.id);
+
+        if (deleteError) throw deleteError;
+
+        await loadQueue();
+        status("Programme removed successfully.");
+      } catch (err) {
+        status("Could not remove programme: " + err.message);
+        removeBtn.disabled = false;
+      }
+    });
+
+    row.append(details, removeBtn);
     queue.append(row);
   });
 
