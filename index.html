@@ -238,8 +238,8 @@ footer {
 
   <div class="tv">
     <div class="screen">
-      <video id="player" controls playsinline
-        preload="metadata"></video>
+     <video id="player" playsinline
+  preload="metadata"></video>
 
       <div class="scanlines"></div>
 
@@ -423,14 +423,7 @@ function renderSchedule() {
 
     row.append(name, detail);
 
-    row.addEventListener("click", () => tuneIn(i));
-
-    row.addEventListener("keydown", event => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        tuneIn(i);
-      }
-    });
+   
 
     schedule.append(row);
   });
@@ -438,7 +431,6 @@ function renderSchedule() {
   render();
 }
 
-// Load programme entries from Supabase.
 async function loadPlaylist() {
   statusText.textContent = "Loading shared playlist...";
 
@@ -450,7 +442,7 @@ async function loadPlaylist() {
 
     if (error) throw error;
 
-    if (data && data.length > 0) {
+    if (data && data.length) {
       playlist = data.map(item => ({
         id: item.id,
         title: item.title,
@@ -459,47 +451,175 @@ async function loadPlaylist() {
       }));
 
       statusText.textContent =
-        "Loaded " + playlist.length +
-        " programme(s) from the shared database.";
+        "Loaded " + playlist.length + " programme(s).";
     } else {
-      statusText.textContent =
-        "Database is connected, but no programmes have been added yet. Showing test videos.";
+      playlist = [];
+      statusText.textContent = "The shared queue is empty.";
     }
   } catch (error) {
-    console.error("Supabase playlist error:", error.message);
-
-    statusText.textContent =
-      "Could not load the database playlist. Showing test videos.";
+    playlist = [];
+    console.error("Playlist error:", error);
+    statusText.textContent = "Could not load the shared playlist.";
   }
 
- playlist = shufflePlaylist(playlist);
   current = 0;
   renderSchedule();
 }
 
-playBtn.addEventListener("click", async () => {
-  if (player.paused) {
-    if (!player.currentSrc || player.ended) {
-      await tuneIn(current);
-    } else {
+let broadcastState = null;
+let activeBroadcastId = null;
+let applyingBroadcast = false;
+
+async function applyBroadcast(state) {
+  broadcastState = state;
+
+  if (applyingBroadcast) return;
+  applyingBroadcast = true;
+
+  try {
+    if (!state || !state.current_item_id) {
+      player.pause();
+      nowPlaying.textContent = "Waiting for broadcast";
+      upNext.textContent = "Waiting for host";
+      showMessage("WAITING FOR BROADCAST");
+      return;
+    }
+
+    const index = playlist.findIndex(
+      item => item.id === state.current_item_id
+    );
+
+    if (index < 0) {
+      statusText.textContent =
+        "The current broadcast item isn't in the loaded playlist.";
+      return;
+    }
+
+    current = index;
+    render();
+
+    if (activeBroadcastId !== state.current_item_id) {
+      activeBroadcastId = state.current_item_id;
+      player.pause();
+      player.src = playlist[index].url;
+      player.load();
+      showMessage("TUNING IN...");
+
+      await new Promise(resolve => {
+        if (player.readyState >= 1) {
+          resolve();
+          return;
+        }
+
+        player.addEventListener("loadedmetadata", resolve, {
+          once: true
+        });
+        player.addEventListener("error", resolve, {
+          once: true
+        });
+      });
+    }
+
+    if (player.readyState < 1) return;
+
+    const elapsed = state.is_playing
+      ? Math.max(
+          0,
+          (Date.now() - Date.parse(state.started_at)) / 1000
+        )
+      : Number(state.paused_at_seconds || 0);
+
+    const target = Number.isFinite(player.duration)
+      ? Math.min(elapsed, Math.max(0, player.duration - 0.25))
+      : elapsed;
+
+    if (Math.abs(player.currentTime - target) > 2) {
+      player.currentTime = target;
+    }
+
+    if (state.is_playing) {
       try {
         await player.play();
+        message.classList.add("hidden");
+        statusText.textContent = "Following the live broadcast.";
       } catch (error) {
-        console.warn("Could not resume playback:", error);
-        showMessage("PRESS PLAY TO START");
+        showMessage("PRESS TUNE IN TO WATCH");
+        statusText.textContent =
+          "Your browser needs a click to start playback.";
       }
+    } else {
+      player.pause();
+      showMessage("BROADCAST PAUSED");
+      statusText.textContent = "The host has paused the broadcast.";
     }
-  } else {
-    player.pause();
+  } catch (error) {
+    console.error("Broadcast sync error:", error);
+    statusText.textContent = "Playback synchronisation error.";
+  } finally {
+    applyingBroadcast = false;
   }
+}
+
+async function loadBroadcastState() {
+  const { data, error } = await supabaseClient
+    .from("broadcast_state")
+    .select("*")
+    .eq("id", 1)
+    .single();
+
+  if (error) {
+    console.error("Broadcast state error:", error);
+    statusText.textContent = "Could not load broadcast state.";
+    return;
+  }
+
+  await applyBroadcast(data);
+}
+
+supabaseClient
+  .channel("nreboot-live-broadcast")
+  .on(
+    "postgres_changes",
+    {
+      event: "UPDATE",
+      schema: "public",
+      table: "broadcast_state",
+      filter: "id=eq.1"
+    },
+    payload => {
+      applyBroadcast(payload.new);
+    }
+  )
+  .subscribe(status => {
+    if (status === "SUBSCRIBED") {
+      loadBroadcastState();
+    } else if (status === "CHANNEL_ERROR") {
+      statusText.textContent =
+        "Live connection failed. Refresh the page to retry.";
+    }
+  });
+
+// Periodically correct playback drift.
+setInterval(() => {
+  if (broadcastState) applyBroadcast(broadcastState);
+}, 5000);
+
+// Viewer controls never change the shared broadcast.
+playBtn.addEventListener("click", async () => {
+  if (!broadcastState || !broadcastState.is_playing) {
+    showMessage("WAITING FOR HOST");
+    return;
+  }
+
+  await applyBroadcast(broadcastState);
 });
 
 document.getElementById("nextBtn").addEventListener("click", () => {
-  tuneIn(current + 1);
+  statusText.textContent = "The host controls the broadcast.";
 });
 
 document.getElementById("prevBtn").addEventListener("click", () => {
-  tuneIn(current - 1);
+  statusText.textContent = "The host controls the broadcast.";
 });
 
 muteBtn.addEventListener("click", () => {
@@ -509,7 +629,7 @@ muteBtn.addEventListener("click", () => {
 });
 
 player.addEventListener("play", () => {
-  playBtn.textContent = "⏸ Pause";
+  playBtn.textContent = "▶ Tune In";
   message.classList.add("hidden");
 });
 
@@ -518,15 +638,11 @@ player.addEventListener("pause", () => {
 });
 
 player.addEventListener("ended", () => {
-  tuneIn(current + 1);
+  showMessage("WAITING FOR NEXT PROGRAMME");
 });
-player.addEventListener("error", () => {
-  const error = player.error;
-  console.error("Video error:", {
-    code: error ? error.code : 0,
-    url: player.currentSrc
-  });
 
+player.addEventListener("error", () => {
+  console.error("Video error:", player.error, player.currentSrc);
   showMessage("VIDEO UNAVAILABLE — CHECK VIDEO SOURCE");
 });
 
