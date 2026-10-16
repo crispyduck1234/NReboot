@@ -647,6 +647,14 @@ player.addEventListener("error", () => {
 });
 
 loadPlaylist().then(() => loadBroadcastState());
+  player.addEventListener("ended", async () => {
+  if (!playlist.length) return;
+
+  // Advance to the next programme, looping at the end.
+  const next = (current + 1) % playlist.length;
+
+  await playProgram(next, true);
+});
 </script>
 
 </body>
