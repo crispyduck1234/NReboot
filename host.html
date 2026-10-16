@@ -259,6 +259,14 @@ let currentUser = null;
 let channel = null;
 let busy = false;
 
+let queueItems = [];
+if (latestBroadcastState) {
+  scheduleAutomaticAdvance(latestBroadcastState);
+}
+let latestBroadcastState = null;
+let automaticAdvanceTimer = null;
+let controllerGeneration = 0;
+
 function status(message) {
   $("status").textContent = message;
 }
@@ -289,19 +297,169 @@ function showLoggedIn(user) {
   }
 }
 
-async function loadQueue() {
+async function loadQueue()function cancelAutomaticAdvance() {
+  if (automaticAdvanceTimer !== null) {
+    clearTimeout(automaticAdvanceTimer);
+    automaticAdvanceTimer = null;
+  }
+
+  controllerGeneration++;
+}
+
+function readVideoDuration(url) {
+  return new Promise(resolve => {
+    const probe = document.createElement("video");
+    probe.preload = "metadata";
+    probe.muted = true;
+
+    let finished = false;
+
+    const timeout = setTimeout(() => finish(null), 15000);
+
+    function finish(duration) {
+      if (finished) return;
+      finished = true;
+
+      clearTimeout(timeout);
+      probe.removeEventListener("loadedmetadata", onMetadata);
+      probe.removeEventListener("error", onError);
+
+      probe.removeAttribute("src");
+      probe.load();
+
+      resolve(
+        Number.isFinite(duration) && duration > 0
+          ? duration
+          : null
+      );
+    }
+
+    function onMetadata() {
+      finish(probe.duration);
+    }
+
+    function onError() {
+      finish(null);
+    }
+
+    probe.addEventListener("loadedmetadata", onMetadata);
+    probe.addEventListener("error", onError);
+
+    probe.src = url;
+    probe.load();
+  });
+}
+
+async function advanceAutomatically(state, generation) {
+  if (generation !== controllerGeneration) return;
+
+  if (
+    !latestBroadcastState ||
+    latestBroadcastState.current_item_id !== state.current_item_id ||
+    latestBroadcastState.started_at !== state.started_at ||
+    !latestBroadcastState.is_playing
+  ) {
+    return;
+  }
+
+  const { error } = await db.rpc("host_advance_broadcast", {
+    p_expected_item_id: state.current_item_id,
+    p_expected_started_at: state.started_at
+  });
+
+  if (error) {
+    console.error("Automatic advance failed:", error);
+    status("Automatic advance failed: " + error.message);
+  }
+}
+
+async function scheduleAutomaticAdvance(state) {
+  latestBroadcastState = state;
+  cancelAutomaticAdvance();
+
+  const generation = controllerGeneration;
+
+  if (
+    !currentUser ||
+    !state ||
+    !state.is_playing ||
+    !state.current_item_id ||
+    !state.started_at
+  ) {
+    return;
+  }
+
+  const item = queueItems.find(
+    entry => entry.id === state.current_item_id
+  );
+
+  if (!item) {
+    // The active item may have been removed from the queue.
+    // Advance only if a current item really was removed.
+    if (queueItems.length > 0) {
+      await advanceAutomatically(state, generation);
+    } else {
+      // An empty queue should not keep playing a deleted item.
+      const { error } = await db.rpc("host_advance_broadcast", {
+        p_expected_item_id: state.current_item_id,
+        p_expected_started_at: state.started_at
+      });
+
+      if (error) {
+        status("Could not stop removed programme: " + error.message);
+      }
+    }
+    return;
+  }
+
+  let duration = Number(item.duration_seconds);
+
+  if (!(Number.isFinite(duration) && duration > 0)) {
+    duration = await readVideoDuration(item.video_url);
+  }
+
+  if (generation !== controllerGeneration) return;
+
+  if (!(Number.isFinite(duration) && duration > 0)) {
+    status(
+      "Cannot determine the duration of " + item.title +
+      ". Automatic advancement is waiting for a supported video URL."
+    );
+    return;
+  }
+
+  const startedAt = Date.parse(state.started_at);
+
+  if (!Number.isFinite(startedAt)) {
+    status("Invalid broadcast start time.");
+    return;
+  }
+
+  const elapsed = Math.max(0, (Date.now() - startedAt) / 1000);
+  const remaining = duration - elapsed;
+
+  if (remaining <= 0) {
+    await advanceAutomatically(state, generation);
+    return;
+  }
+
+  automaticAdvanceTimer = setTimeout(() => {
+    advanceAutomatically(state, generation);
+  }, Math.min(remaining * 1000, 2147483000));
+} {
   if (!currentUser) return;
 
   const { data, error } = await db
-    .from("playlist_items")
-    .select("id, title, video_url, description, position")
-    .order("position", { ascending: true });
-
+  .from("playlist_items")
+  .select("id, title, video_url, description, position, created_at, duration_seconds")
+  .order("position", { ascending: true })
+  .order("created_at", { ascending: true })
+  .order("id", { ascending: true });
   if (error) {
     status("Could not load queue: " + error.message);
     return;
   }
-
+queueItems = data || [];
   const queue = $("queue");
   queue.replaceChildren();
   $("count").textContent = "(" + data.length + ")";
@@ -455,6 +613,61 @@ $("shuffleBtn").addEventListener("click", async () => {
   }
 });
 
+async function runBroadcastAction(rpcName, successMessage) {
+  if (!currentUser || busy) return;
+
+  setBusy(true);
+  status("Updating broadcast...");
+
+  try {
+    const { error } = await db.rpc(rpcName);
+    if (error) throw error;
+
+    status(successMessage);
+
+    const { data, error: stateError } = await db
+      .from("broadcast_state")
+      .select("*")
+      .eq("id", 1)
+      .single();
+
+    if (stateError) throw stateError;
+
+    await scheduleAutomaticAdvance(data);
+  } catch (error) {
+    status("Broadcast action failed: " + error.message);
+  } finally {
+    setBusy(false);
+  }
+}
+
+$("startFirstBtn").addEventListener("click", () => {
+  runBroadcastAction(
+    "host_start_broadcast",
+    "Broadcast started."
+  );
+});
+
+$("skipBtn").addEventListener("click", () => {
+  runBroadcastAction(
+    "host_skip_broadcast",
+    "Skipped to the next programme."
+  );
+});
+
+$("pauseBroadcastBtn").addEventListener("click", () => {
+  runBroadcastAction(
+    "host_pause_broadcast",
+    "Broadcast paused."
+  );
+});
+
+$("resumeBroadcastBtn").addEventListener("click", () => {
+  runBroadcastAction(
+    "host_resume_broadcast",
+    "Broadcast resumed."
+  );
+});
 $("refreshBtn").addEventListener("click", loadQueue);
 
 $("logoutBtn").addEventListener("click", async () => {
@@ -504,16 +717,41 @@ async function startHostSession() {
   showLoggedIn(user);
   await loadQueue();
 
-  channel = db
-    .channel("nreboot-host-queue")
-    .on("postgres_changes", {
-      event: "*",
-      schema: "public",
-      table: "playlist_items"
-    }, () => {
-      loadQueue();
-    })
-    .subscribe();
+ channel = db
+  .channel("nreboot-host-queue")
+  .on("postgres_changes", {
+    event: "*",
+    schema: "public",
+    table: "playlist_items"
+  }, () => {
+    loadQueue();
+  })
+  .on("postgres_changes", {
+    event: "UPDATE",
+    schema: "public",
+    table: "broadcast_state",
+    filter: "id=eq.1"
+  }, payload => {
+    scheduleAutomaticAdvance(payload.new);
+  })
+  .subscribe(async subscriptionStatus => {
+    if (subscriptionStatus === "SUBSCRIBED") {
+      const { data, error } = await db
+        .from("broadcast_state")
+        .select("*")
+        .eq("id", 1)
+        .single();
+
+      if (error) {
+        status("Could not load broadcast state: " + error.message);
+        return;
+      }
+
+      await scheduleAutomaticAdvance(data);
+    } else if (subscriptionStatus === "CHANNEL_ERROR") {
+      status("Live connection failed. Refresh to retry.");
+    }
+  });
 }
 
 db.auth.onAuthStateChange((event, session) => {
