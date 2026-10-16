@@ -472,6 +472,7 @@ async function loadPlaylist() {
       "Could not load the database playlist. Showing test videos.";
   }
 
+ playlist = shufflePlaylist(playlist);
   current = 0;
   renderSchedule();
 }
@@ -517,9 +518,8 @@ player.addEventListener("pause", () => {
 });
 
 player.addEventListener("ended", () => {
-  tuneIn("random");
+  tuneIn(current + 1);
 });
-
 player.addEventListener("error", () => {
   const error = player.error;
   console.error("Video error:", {
