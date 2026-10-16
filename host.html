@@ -1,0 +1,480 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NReboot — Host Panel</title>
+  <style>
+    :root {
+      --orange: #ff6500;
+      --bg: #101010;
+      --panel: #1b1b1b;
+      --muted: #aaa;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: white;
+      font-family: "Trebuchet MS", Arial, sans-serif;
+    }
+
+    header {
+      padding: 20px 5%;
+      border-bottom: 1px solid #333;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo {
+      color: var(--orange);
+      font-size: 27px;
+      font-weight: 1000;
+      font-style: italic;
+    }
+
+    main {
+      width: min(850px, 92%);
+      margin: 35px auto;
+    }
+
+    h1 { font-size: 32px; }
+
+    h2 {
+      border-bottom: 1px solid #333;
+      padding-bottom: 10px;
+      margin-top: 32px;
+    }
+
+    .muted, #status {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .panel, .item {
+      background: var(--panel);
+      padding: 18px;
+      border: 1px solid #333;
+      border-radius: 8px;
+      margin: 12px 0;
+    }
+
+    label {
+      display: block;
+      margin: 14px 0 6px;
+      font-size: 14px;
+    }
+
+    input, textarea {
+      display: block;
+      width: 100%;
+      background: #101010;
+      color: white;
+      border: 1px solid #484848;
+      border-radius: 5px;
+      padding: 12px;
+      font: inherit;
+    }
+
+    button {
+      background: #242424;
+      color: white;
+      border: 1px solid #555;
+      border-radius: 5px;
+      padding: 11px 15px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:hover {
+      border-color: var(--orange);
+      color: var(--orange);
+    }
+
+    button.primary {
+      background: var(--orange);
+      color: #111;
+      border-color: var(--orange);
+    }
+
+    button:disabled {
+      opacity: .5;
+      cursor: wait;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .item {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      gap: 15px;
+    }
+
+    .item strong { overflow-wrap: anywhere; }
+    .item small {
+      display: block;
+      color: var(--muted);
+      margin-top: 6px;
+      overflow-wrap: anywhere;
+    }
+
+    .item a {
+      color: var(--orange);
+      font-size: 13px;
+    }
+
+    [hidden] { display: none !important; }
+
+    footer {
+      text-align: center;
+      color: #777;
+      padding: 30px;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div class="logo">NReboot / HOST</div>
+  <button id="logoutBtn" hidden>Log out</button>
+</header>
+
+<main>
+  <h1>Broadcast Control Room</h1>
+  <p class="muted">
+    Manage the shared NReboot programme queue.
+  </p>
+
+  <p id="status" role="status" aria-live="polite">
+    Connecting to NReboot...
+  </p>
+
+  <section id="loginPanel" class="panel" hidden>
+    <h2>Host login</h2>
+    <form id="loginForm">
+      <label for="email">Email</label>
+      <input id="email" type="email" autocomplete="username"
+        required>
+
+      <label for="password">Password</label>
+      <input id="password" type="password"
+        autocomplete="current-password" required>
+
+      <div class="actions">
+        <button class="primary" type="submit">Log in</button>
+      </div>
+    </form>
+  </section>
+
+  <section id="hostPanel" hidden>
+    <div class="panel">
+      <h2>Add a programme</h2>
+      <form id="addForm">
+        <label for="title">Programme title</label>
+        <input id="title" maxlength="200" required
+          placeholder="e.g. Retro cartoon episode">
+
+        <label for="videoUrl">Video URL</label>
+        <input id="videoUrl" type="url" required
+          placeholder="https://example.com/video.mp4">
+
+        <label for="description">Description (optional)</label>
+        <textarea id="description" rows="2" maxlength="1000"
+          placeholder="Episode, bumper, promo..."></textarea>
+
+        <div class="actions">
+          <button class="primary" type="submit">
+            + Add to queue
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <div class="panel">
+      <h2>Queue controls</h2>
+      <p class="muted">
+        Shuffle randomises the entire queue. It does not yet
+        control the live player.
+      </p>
+      <div class="actions">
+        <button id="shuffleBtn">⤨ Shuffle queue</button>
+        <button id="refreshBtn">↻ Refresh queue</button>
+        <a href="./index.html" style="align-self:center;color:#ff6500">
+          Open viewer site
+        </a>
+      </div>
+    </div>
+
+    <h2>Playlist <span id="count" class="muted"></span></h2>
+    <div id="queue"></div>
+  </section>
+</main>
+
+<footer>
+  NREBOOT · PRIVATE HOST CONTROLS
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL =
+  "https://mylyzcfxlkszlproidnh.supabase.co";
+
+const SUPABASE_KEY =
+  "sb_publishable_MshxI2MawNuZ41uRg2zwAw_sB3jdOJN";
+
+const db = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY
+);
+
+const $ = id => document.getElementById(id);
+
+let currentUser = null;
+let channel = null;
+let busy = false;
+
+function status(message) {
+  $("status").textContent = message;
+}
+
+function setBusy(value) {
+  busy = value;
+
+  document.querySelectorAll(
+    "#hostPanel button, #hostPanel input, " +
+    "#hostPanel textarea"
+  ).forEach(el => {
+    el.disabled = value;
+  });
+}
+
+function showLoggedIn(user) {
+  currentUser = user;
+  $("loginPanel").hidden = !!user;
+  $("hostPanel").hidden = !user;
+  $("logoutBtn").hidden = !user;
+
+  if (user) {
+    status("Signed in as " + user.email);
+  } else {
+    $("queue").replaceChildren();
+    $("count").textContent = "";
+    status("Please log in with your host account.");
+  }
+}
+
+async function loadQueue() {
+  if (!currentUser) return;
+
+  const { data, error } = await db
+    .from("playlist_items")
+    .select("id, title, video_url, description, position")
+    .order("position", { ascending: true });
+
+  if (error) {
+    status("Could not load queue: " + error.message);
+    return;
+  }
+
+  const queue = $("queue");
+  queue.replaceChildren();
+  $("count").textContent = "(" + data.length + ")";
+
+  if (!data.length) {
+    const empty = document.createElement("p");
+    empty.className = "muted";
+    empty.textContent = "Your playlist is empty. Add a programme above.";
+    queue.append(empty);
+    status("Connected. No programmes in the queue.");
+    return;
+  }
+
+  data.forEach((item, index) => {
+    const row = document.createElement("div");
+    row.className = "item";
+
+    const details = document.createElement("div");
+    const title = document.createElement("strong");
+    title.textContent = (index + 1) + ". " + item.title;
+
+    const description = document.createElement("small");
+    description.textContent = item.description || "No description";
+
+    const url = document.createElement("small");
+    url.textContent = item.video_url;
+
+    details.append(title, description, url);
+    row.append(details);
+    queue.append(row);
+  });
+
+  status("Queue loaded. " + data.length + " programme(s).");
+}
+
+$("loginForm").addEventListener("submit", async event => {
+  event.preventDefault();
+
+  const button = event.submitter;
+  button.disabled = true;
+  status("Signing in...");
+
+  try {
+    const { data, error } = await db.auth.signInWithPassword({
+      email: $("email").value.trim(),
+      password: $("password").value
+    });
+
+    if (error) throw error;
+
+    // The host table is the real authorization check.
+    const { data: host, error: hostError } = await db
+      .from("broadcast_hosts")
+      .select("user_id")
+      .eq("user_id", data.user.id)
+      .maybeSingle();
+
+    if (hostError) throw hostError;
+
+    if (!host) {
+      await db.auth.signOut();
+      throw new Error("This account is not authorised as a host.");
+    }
+
+    showLoggedIn(data.user);
+    await loadQueue();
+  } catch (error) {
+    status(error.message);
+  } finally {
+    button.disabled = false;
+  }
+});
+
+$("addForm").addEventListener("submit", async event => {
+  event.preventDefault();
+  if (!currentUser || busy) return;
+
+  setBusy(true);
+  status("Adding programme...");
+
+  try {
+    const { error } = await db.rpc("host_add_playlist_item", {
+      p_title: $("title").value.trim(),
+      p_video_url: $("videoUrl").value.trim(),
+      p_description: $("description").value.trim() || null
+    });
+
+    if (error) throw error;
+
+    $("addForm").reset();
+    await loadQueue();
+    status("Programme added to the queue.");
+  } catch (error) {
+    status("Could not add programme: " + error.message);
+  } finally {
+    setBusy(false);
+  }
+});
+
+$("shuffleBtn").addEventListener("click", async () => {
+  if (!currentUser || busy) return;
+
+  if (!confirm("Shuffle the entire playlist?")) return;
+
+  setBusy(true);
+  status("Shuffling queue...");
+
+  try {
+    const { error } = await db.rpc("host_shuffle_playlist");
+    if (error) throw error;
+
+    await loadQueue();
+    status("Queue shuffled successfully.");
+  } catch (error) {
+    status("Could not shuffle: " + error.message);
+  } finally {
+    setBusy(false);
+  }
+});
+
+$("refreshBtn").addEventListener("click", loadQueue);
+
+$("logoutBtn").addEventListener("click", async () => {
+  if (channel) {
+    await db.removeChannel(channel);
+    channel = null;
+  }
+
+  const { error } = await db.auth.signOut();
+
+  if (error) {
+    status("Could not log out: " + error.message);
+    return;
+  }
+
+  showLoggedIn(null);
+});
+
+async function startHostSession() {
+  const { data, error } = await db.auth.getSession();
+
+  if (error) {
+    status("Authentication error: " + error.message);
+    return;
+  }
+
+  if (!data.session) {
+    showLoggedIn(null);
+    return;
+  }
+
+  const user = data.session.user;
+
+  const { data: host, error: hostError } = await db
+    .from("broadcast_hosts")
+    .select("user_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (hostError || !host) {
+    await db.auth.signOut();
+    showLoggedIn(null);
+    status("This account is not authorised as a host.");
+    return;
+  }
+
+  showLoggedIn(user);
+  await loadQueue();
+
+  channel = db
+    .channel("nreboot-host-queue")
+    .on("postgres_changes", {
+      event: "*",
+      schema: "public",
+      table: "playlist_items"
+    }, () => {
+      loadQueue();
+    })
+    .subscribe();
+}
+
+db.auth.onAuthStateChange((event, session) => {
+  if (event === "SIGNED_OUT") {
+    showLoggedIn(null);
+  }
+});
+
+startHostSession();
+</script>
+</body>
+</html>
