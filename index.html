@@ -646,7 +646,7 @@ player.addEventListener("error", () => {
   showMessage("VIDEO UNAVAILABLE — CHECK VIDEO SOURCE");
 });
 
-loadPlaylist();
+loadPlaylist().then(() => loadBroadcastState());
 </script>
 
 </body>
