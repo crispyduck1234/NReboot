@@ -561,11 +561,12 @@ async function applyBroadcast(state) {
 }
 
 async function loadBroadcastState() {
-  const { data, error } = await supabaseClient
-    .from("broadcast_state")
-    .select("*")
-    .eq("id", 1)
-    .single();
+const { data, error } = await supabaseClient
+  .from("playlist_items")
+  .select("id, title, video_url, description, position, created_at")
+  .order("position", { ascending: true })
+  .order("created_at", { ascending: true })
+  .order("id", { ascending: true });
 
   if (error) {
     console.error("Broadcast state error:", error);
@@ -586,6 +587,18 @@ supabaseClient
       table: "broadcast_state",
       filter: "id=eq.1"
     },
+    .on(
+  "postgres_changes",
+  {
+    event: "*",
+    schema: "public",
+    table: "playlist_items"
+  },
+  async () => {
+    await loadPlaylist();
+    await loadBroadcastState();
+  }
+)
     payload => {
       applyBroadcast(payload.new);
     }
